@@ -1,0 +1,23 @@
+name: ci
+on:
+push:
+branches: [ main ]
+pull_request:
+branches: [ main ]
+jobs:
+rust:
+runs-on: windows-2022
+steps:
+- uses: actions/checkout@v4
+- uses: dtolnay/rust-toolchain@stable
+- name: Build
+run: cargo build --workspace --locked
+- name: Clippy
+run: cargo clippy --workspace --all-targets -- -D warnings
+- name: Tests
+run: cargo test --workspace
+- name: Upload CLI
+uses: actions/upload-artifact@v4
+with:
+name: hidra-tools-win64
+path: target/debug/hidra-tools.exe

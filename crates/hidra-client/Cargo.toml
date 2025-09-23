@@ -1,0 +1,9 @@
+[package]
+name = "hidra-client"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+tokio = { workspace = true }
+hidra-protocol = { path = "../hidra-protocol" }

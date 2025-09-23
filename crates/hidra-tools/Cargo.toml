@@ -1,0 +1,11 @@
+[package]
+name = "hidra-tools"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+tokio = { workspace = true }
+hidra-client = { path = "../hidra-client" }
+hidra-protocol = { path = "../hidra-protocol" }
+clap = { version = "4", features = ["derive"] }

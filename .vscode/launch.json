@@ -1,0 +1,13 @@
+{
+"version": "0.2.0",
+"configurations": [
+{
+"name": "Run hidra-tools",
+"type": "cppvsdbg",
+"request": "launch",
+"program": "${workspaceFolder}/target/debug/hidra-tools.exe",
+"args": ["spawn", "x360"],
+"cwd": "${workspaceFolder}"
+}
+]
+}

@@ -1,0 +1,7 @@
+/target
+/.idea
+/.vscode/ipch
+**/.pdb
+**/.idb
+**/*.ilk
+.DS_Store
