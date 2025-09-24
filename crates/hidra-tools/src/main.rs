@@ -13,6 +13,12 @@ enum Cmd {
         #[arg(value_enum)]
         kind: PadKind,
     },
+    Update {
+        #[arg(long)]
+        handle: u64,
+        #[arg(long)]
+        state: String,
+    },
     Destroy {
         handle: u64,
     },
@@ -46,6 +52,16 @@ async fn main() -> Result<()> {
             let h = spawn(kind).await?;
             info!(handle = h.0, "spawned handle");
             println!("{}", h.0);
+        }
+        Cmd::Update { handle, state } => {
+            let parts: Vec<&str> = state.split(',').collect();
+            if parts.len() != 6 {
+                anyhow::bail!("state must have 6 comma-separated values");
+            }
+            let s = serde_json::from_str(&state)?;
+            info!(handle, state=?s, "updated state");
+
+            hidra_client::update_state(hidra_client::GamepadHandle(handle), s).await?;
         }
         Cmd::Destroy { handle } => {
             destroy(hidra_client::GamepadHandle(handle)).await?;
