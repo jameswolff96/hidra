@@ -2,6 +2,7 @@
 use anyhow::Result;
 use clap::Parser;
 use hidra_client::{destroy, ping, spawn};
+use hidra_ipc::PadState;
 use hidra_protocol::DeviceKind;
 use tracing::info;
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
@@ -17,7 +18,21 @@ enum Cmd {
         #[arg(long)]
         handle: u64,
         #[arg(long)]
-        state: String,
+        state_json: Option<String>,
+        #[arg(long)]
+        buttons: Option<u16>,
+        #[arg(long)]
+        lx: Option<i16>,
+        #[arg(long)]
+        ly: Option<i16>,
+        #[arg(long)]
+        rx: Option<i16>,
+        #[arg(long)]
+        ry: Option<i16>,
+        #[arg(long)]
+        lt: Option<u16>,
+        #[arg(long)]
+        rt: Option<u16>,
     },
     Destroy {
         handle: u64,
@@ -53,8 +68,35 @@ async fn main() -> Result<()> {
             info!(handle = h.0, "spawned handle");
             println!("{}", h.0);
         }
-        Cmd::Update { handle, state } => {
-            let s = serde_json::from_str(&state)?;
+        Cmd::Update { handle, state_json, buttons, lx, ly, rx, ry, lt, rt } => {
+            let mut s = if let Some(j) = state_json {
+                serde_json::from_str(&j)?
+            } else {
+                PadState::default()
+            };
+
+            if let Some(v) = buttons {
+                s.buttons = v
+            }
+            if let Some(v) = lx {
+                s.lx = v
+            }
+            if let Some(v) = ly {
+                s.ly = v
+            }
+            if let Some(v) = rx {
+                s.rx = v
+            }
+            if let Some(v) = ry {
+                s.ry = v
+            }
+            if let Some(v) = lt {
+                s.lt = v
+            }
+            if let Some(v) = rt {
+                s.rt = v
+            }
+
             info!(handle, state=?s, "updated state");
 
             hidra_client::update_state(hidra_client::GamepadHandle(handle), s).await?;
