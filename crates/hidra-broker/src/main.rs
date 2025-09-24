@@ -13,6 +13,8 @@ use tokio::net::windows::named_pipe::{NamedPipeServer, ServerOptions};
 use tracing::{error, info, instrument};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
+use crate::backend::{Backend, mock::Mock};
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
@@ -30,6 +32,7 @@ async fn main() -> Result<()> {
     loop {
         // 1) Create ONE instance
         let server = ServerOptions::new().create(PIPE_PATH)?;
+        let backend = Mock::new();
         // 2) Wait for a client to connect BEFORE spawning
         server.connect().await?;
         info!("client connected");
@@ -38,7 +41,7 @@ async fn main() -> Result<()> {
 
         // 3) Move the *connected* server into a task to serve it
         tokio::spawn(async move {
-            if let Err(e) = serve_connected(server, nh).await {
+            if let Err(e) = serve_connected(server, backend, nh).await {
                 error!(error=%e, "client session error");
             }
         });
@@ -47,8 +50,12 @@ async fn main() -> Result<()> {
     }
 }
 
-#[instrument(skip(server, next_handle), fields(peer=?std::thread::current().id()))]
-async fn serve_connected(mut server: NamedPipeServer, next_handle: Arc<AtomicU64>) -> Result<()> {
+#[instrument(skip(server, backend, next_handle), fields(peer=?std::thread::current().id()))]
+async fn serve_connected(
+    mut server: NamedPipeServer,
+    backend: Arc<dyn Backend>,
+    next_handle: Arc<AtomicU64>,
+) -> Result<()> {
     loop {
         match read_json_opt::<BrokerRequest, _>(&mut server).await {
             Ok(None) => {
@@ -58,19 +65,48 @@ async fn serve_connected(mut server: NamedPipeServer, next_handle: Arc<AtomicU64
             Ok(Some(BrokerRequest::Create { kind, features })) => {
                 let handle = next_handle.fetch_add(1, Ordering::SeqCst);
                 info!(?kind, features, handle, "create device");
-                write_json(&mut server, &BrokerResponse::OkCreate { handle }).await?;
+                match backend.create(kind, features).await {
+                    Ok(_) => {
+                        info!(handle, "created device");
+                        write_json(&mut server, &BrokerResponse::OkCreate { handle }).await?;
+                    }
+                    Err(e) => {
+                        error!(error=%e, "backend create error");
+                        write_json(&mut server, &BrokerResponse::Err { message: e.to_string() })
+                            .await?;
+                    }
+                }
             }
             Ok(Some(BrokerRequest::Destroy { handle })) => {
                 info!(handle, "destroy device");
-                write_json(&mut server, &BrokerResponse::Ok).await?;
+                match backend.destroy(handle).await {
+                    Ok(_) => {
+                        info!(handle, "destroyed device");
+                        write_json(&mut server, &BrokerResponse::Ok).await?;
+                    }
+                    Err(e) => {
+                        error!(error=%e, "backend destroy error");
+                        write_json(&mut server, &BrokerResponse::Err { message: e.to_string() })
+                            .await?;
+                    }
+                }
             }
             Ok(Some(BrokerRequest::Ping)) => {
                 write_json(&mut server, &BrokerResponse::Pong).await?;
             }
             Ok(Some(BrokerRequest::UpdateState { handle, state })) => {
                 info!(handle, ?state, "update state");
-                // TODO: Forward to driver
-                write_json(&mut server, &BrokerResponse::Ok).await?;
+                match backend.update(handle, state.try_into()?).await {
+                    Ok(_) => {
+                        info!(handle, "updated state");
+                        write_json(&mut server, &BrokerResponse::Ok).await?;
+                    }
+                    Err(e) => {
+                        error!(error=%e, "backend update error");
+                        write_json(&mut server, &BrokerResponse::Err { message: e.to_string() })
+                            .await?;
+                    }
+                }
             }
             Err(e) => {
                 // Send error back (best effort) then exit.
