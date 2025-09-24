@@ -4,10 +4,7 @@ pub mod backend;
 
 use anyhow::Result;
 use hidra_ipc::{BrokerRequest, BrokerResponse, PIPE_PATH, read_json_opt, write_json};
-use std::sync::{
-    Arc,
-    atomic::{AtomicU64, Ordering},
-};
+use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use tokio::net::windows::named_pipe::{NamedPipeServer, ServerOptions};
 use tracing::{error, info, instrument};
@@ -41,8 +38,6 @@ async fn main() -> Result<()> {
         server.connect().await?;
         info!("client connected");
 
-        let nh = next_handle.clone();
-
         tokio::spawn(async move {
             if let Err(e) = serve_connected(server, backend, nh).await {
                 error!(error=%e, "client session error");
@@ -66,8 +61,7 @@ async fn serve_connected(
                 break;
             }
             Ok(Some(BrokerRequest::Create { kind, features })) => {
-                let handle = next_handle.fetch_add(1, Ordering::SeqCst);
-                info!(?kind, features, handle, "create device");
+                info!(?kind, features, "create device");
                 match backend.create(kind, features).await {
                     Ok(_) => {
                         info!(handle, "created device");
