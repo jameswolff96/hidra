@@ -8,6 +8,7 @@ anyhow = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
+tracing = { workspace = true }
 hidra-protocol = { path = "../hidra-protocol" }
 hidra-ipc = { path = "../hidra-ipc" }
 

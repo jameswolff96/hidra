@@ -8,10 +8,20 @@ use std::sync::{
 };
 use tokio::io::AsyncWriteExt;
 use tokio::net::windows::named_pipe::{NamedPipeServer, ServerOptions};
+use tracing::{error, info, instrument};
+use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("[hidra-broker] starting on {PIPE_PATH}");
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+    FmtSubscriber::builder()
+        .with_env_filter(filter)
+        .with_target(true)
+        .with_ansi(true)
+        .compact()
+        .init();
+
+    info!(pipe=%PIPE_PATH, "hidra-broker starting");
 
     let next_handle = Arc::new(AtomicU64::new(1));
 
@@ -21,7 +31,7 @@ async fn main() -> Result<()> {
 
         tokio::spawn(async move {
             if let Err(e) = serve_client(server, nh).await {
-                eprintln!("[hidra-broker] client error: {e:#}");
+                error!(error=%e, "client session ended with error");
             }
         });
 
@@ -29,28 +39,34 @@ async fn main() -> Result<()> {
     }
 }
 
+#[instrument(skip(server, next_handle), fields(peer=?std::thread::current().id()))]
 async fn serve_client(mut server: NamedPipeServer, next_handle: Arc<AtomicU64>) -> Result<()> {
     server.connect().await?;
-    println!("[hidra-broker] client connected");
+    info!("client connected");
 
     loop {
         match read_json::<BrokerRequest, _>(&mut server).await {
-            Ok(BrokerRequest::Create { kind: _kind, features: _features }) => {
+            Ok(BrokerRequest::Create { kind, features }) => {
                 let handle = next_handle.fetch_add(1, Ordering::SeqCst);
+                info!(?kind, features, handle, "create device");
                 write_json(&mut server, &BrokerResponse::OkCreate { handle }).await?;
             }
-            Ok(BrokerRequest::Destroy { handle: _ }) => {
+            Ok(BrokerRequest::Destroy { handle }) => {
+                info!(handle, "destroy device");
                 write_json(&mut server, &BrokerResponse::Ok).await?;
             }
             Ok(BrokerRequest::Ping) => {
+                info!("ping");
                 write_json(&mut server, &BrokerResponse::Pong).await?;
             }
-            Ok(BrokerRequest::UpdateState { handle: _, state: _ }) => {
+            Ok(BrokerRequest::UpdateState { handle, state }) => {
+                info!(handle, ?state, "update state");
                 // TODO: Forward to driver
                 write_json(&mut server, &BrokerResponse::Ok).await?;
             }
             Err(e) => {
                 // Send error back (best effort) then exit.
+                error!(error=%e, "protocol/read error");
                 let _ =
                     write_json(&mut server, &BrokerResponse::Err { message: e.to_string() }).await;
                 let _ = server.flush().await;
@@ -59,7 +75,7 @@ async fn serve_client(mut server: NamedPipeServer, next_handle: Arc<AtomicU64>) 
         }
     }
 
-    println!("[hidra-broker] client disconnected");
+    info!("client disconnected");
 
     Ok(())
 }
