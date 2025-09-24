@@ -1,5 +1,7 @@
 #![deny(warnings)]
 
+pub mod backend;
+
 use anyhow::Result;
 use hidra_ipc::{BrokerRequest, BrokerResponse, PIPE_PATH, read_json_opt, write_json};
 use std::sync::{

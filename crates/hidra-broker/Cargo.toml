@@ -12,3 +12,5 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 hidra-protocol = { path = "../hidra-protocol" }
 hidra-ipc = { path = "../hidra-ipc" }
+dashmap = "6.1.0"
+async-trait = "0.1.89"
