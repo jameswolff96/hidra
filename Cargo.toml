@@ -5,6 +5,7 @@ members = [
   "crates/hidra-ffi",
   "crates/hidra-ipc",
   "crates/hidra-tools",
+  "crates/hidra-broker",
 ]
 resolver = "2"
 
