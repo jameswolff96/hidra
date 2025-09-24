@@ -46,6 +46,52 @@ impl From<&PadState> for X360Report {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DS4Report(pub Vec<u8>);
+
+impl From<Vec<u8>> for DS4Report {
+    fn from(data: Vec<u8>) -> Self {
+        DS4Report(data)
+    }
+}
+
+impl DS4Report {
+    #[inline]
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+/// Pack IOCTL PadState into DS4 report.
+impl From<&PadState> for DS4Report {
+    fn from(_s: &PadState) -> Self {
+        todo!("DS4 report packing not implemented yet");
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DS5Report(pub Vec<u8>);
+
+impl From<Vec<u8>> for DS5Report {
+    fn from(data: Vec<u8>) -> Self {
+        DS5Report(data)
+    }
+}
+
+impl DS5Report {
+    #[inline]
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+/// Pack IOCTL PadState into DS5 report.
+impl From<&PadState> for DS5Report {
+    fn from(_s: &PadState) -> Self {
+        todo!("DS5 report packing not implemented yet");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
