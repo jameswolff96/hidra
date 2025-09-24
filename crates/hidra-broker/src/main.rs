@@ -1,7 +1,7 @@
 #![deny(warnings)]
 
 use anyhow::Result;
-use hidra_ipc::{BrokerRequest, BrokerResponse, PIPE_PATH, read_json, write_json};
+use hidra_ipc::{BrokerRequest, BrokerResponse, PIPE_PATH, read_json_opt, write_json};
 use std::sync::{
     Arc,
     atomic::{AtomicU64, Ordering},
@@ -45,21 +45,25 @@ async fn serve_client(mut server: NamedPipeServer, next_handle: Arc<AtomicU64>) 
     info!("client connected");
 
     loop {
-        match read_json::<BrokerRequest, _>(&mut server).await {
-            Ok(BrokerRequest::Create { kind, features }) => {
+        match read_json_opt::<BrokerRequest, _>(&mut server).await {
+            Ok(None) => {
+                info!("client disconnected");
+                break;
+            }
+            Ok(Some(BrokerRequest::Create { kind, features })) => {
                 let handle = next_handle.fetch_add(1, Ordering::SeqCst);
                 info!(?kind, features, handle, "create device");
                 write_json(&mut server, &BrokerResponse::OkCreate { handle }).await?;
             }
-            Ok(BrokerRequest::Destroy { handle }) => {
+            Ok(Some(BrokerRequest::Destroy { handle })) => {
                 info!(handle, "destroy device");
                 write_json(&mut server, &BrokerResponse::Ok).await?;
             }
-            Ok(BrokerRequest::Ping) => {
+            Ok(Some(BrokerRequest::Ping)) => {
                 info!("ping");
                 write_json(&mut server, &BrokerResponse::Pong).await?;
             }
-            Ok(BrokerRequest::UpdateState { handle, state }) => {
+            Ok(Some(BrokerRequest::UpdateState { handle, state })) => {
                 info!(handle, ?state, "update state");
                 // TODO: Forward to driver
                 write_json(&mut server, &BrokerResponse::Ok).await?;
@@ -74,8 +78,6 @@ async fn serve_client(mut server: NamedPipeServer, next_handle: Arc<AtomicU64>) 
             }
         }
     }
-
-    info!("client disconnected");
 
     Ok(())
 }

@@ -48,7 +48,7 @@ pub async fn connect_client() -> Result<NamedPipeClient> {
         .with_context(|| format!("failed to open pipe {}", PIPE_PATH))
 }
 
-pub async fn read_json<T, R>(reader: &mut R) -> Result<T>
+pub async fn read_json_opt<T, R>(reader: &mut R) -> Result<Option<T>>
 where
     T: for<'de> serde::Deserialize<'de>,
     R: tokio::io::AsyncRead + Unpin,
@@ -57,10 +57,10 @@ where
     let mut line = String::new();
     let n = br.read_line(&mut line).await.context("read_line failed")?;
     if n == 0 {
-        anyhow::bail!("peer closed pipe (eof)");
+        return Ok(None);
     }
     let value = serde_json::from_str(&line).context("invalid JSON frame")?;
-    Ok(value)
+    Ok(Some(value))
 }
 
 pub async fn write_json<T, W>(writer: &mut W, value: &T) -> Result<()>
