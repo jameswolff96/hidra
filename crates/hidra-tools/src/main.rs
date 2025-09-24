@@ -1,7 +1,7 @@
 #![deny(warnings)]
 use anyhow::Result;
 use clap::Parser;
-use hidra_client::{set_rumble, spawn};
+use hidra_client::{destroy, ping, spawn};
 use hidra_protocol::DeviceKind;
 
 #[derive(Parser)]
@@ -37,14 +37,13 @@ async fn main() -> Result<()> {
             };
             let h = spawn(kind).await?;
             println!("Spawned device with handle {}", h.0);
-            set_rumble(h, 0, 0).await?;
         }
         Cmd::Destroy { handle } => {
-            hidra_client::destroy(hidra_client::GamepadHandle(handle)).await?;
+            destroy(hidra_client::GamepadHandle(handle)).await?;
             println!("Destroyed device with handle {}", handle);
         }
         Cmd::Ping => {
-            hidra_client::ping().await?;
+            ping().await?;
             println!("broker pong");
         }
     }
