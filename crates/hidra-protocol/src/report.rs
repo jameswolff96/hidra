@@ -1,4 +1,4 @@
-use crate::ioctl::PadState;
+use crate::PadState;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct X360Report(pub [u8; 14]);
@@ -95,7 +95,7 @@ impl From<&PadState> for DS5Report {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ioctl::PadState;
+    use crate::PadState;
 
     #[test]
     fn x360_zeroed_report() {

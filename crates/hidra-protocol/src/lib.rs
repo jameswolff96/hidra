@@ -1,10 +1,9 @@
 #![deny(warnings)]
 //! ABI-stable protocol: device kinds, flags, message envelopes.
 
-pub mod ioctl;
-pub mod report;
-
 use serde::{Deserialize, Serialize};
+
+pub mod report;
 
 #[repr(u16)]
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
@@ -14,11 +13,52 @@ pub enum DeviceKind {
     DS5 = 0x0CE6,
 }
 
+bitflags::bitflags! {
+    #[repr(transparent)]
+    pub struct Features: u32 {
+        const RUMBLE  = 1 << 0;
+        const TOUCH   = 1 << 1;
+        const GYRO    = 1 << 2;
+        const LED     = 1 << 3;
+    }
+}
+
+const _: [(); 14] = [(); size_of::<PadState>()];
+const _: [(); 2] = [(); align_of::<PadState>()];
+
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct CreateDevice {
+#[derive(Clone, Copy, Debug, Default)]
+pub struct PadState {
+    pub buttons: u16,
+    pub lx: i16,
+    pub ly: i16,
+    pub rx: i16,
+    pub ry: i16,
+    pub lt: u16,
+    pub rt: u16,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct CreateIn {
     pub kind: DeviceKind,
-    pub features: u32, // bitflags: rumble,touchpad,gyro,led,...
+    pub features: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct CreateOut {
+    pub handle: u64,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct DestroyIn {
+    pub handle: u64,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct UpdateIn {
+    pub handle: u64,
+    pub state: PadState,
 }
 
 pub const HIDRA_FFI_ABI_VERSION: u32 = 1;

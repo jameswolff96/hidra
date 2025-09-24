@@ -2,8 +2,7 @@ use super::Backend;
 use anyhow::Result;
 use dashmap::DashMap;
 use hidra_protocol::{
-    DeviceKind,
-    ioctl::PadState,
+    DeviceKind, PadState,
     report::{DS4Report, DS5Report, X360Report},
 };
 use std::sync::{

@@ -5,7 +5,6 @@ pub mod backend;
 use anyhow::Result;
 use dashmap::DashMap;
 use hidra_ipc::{BrokerRequest, BrokerResponse, PIPE_PATH, read_json_opt, write_json};
-use hidra_protocol::ioctl;
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use tokio::net::windows::named_pipe::{NamedPipeServer, ServerOptions};
@@ -15,19 +14,20 @@ use tracing::{error, info, instrument};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 #[cfg(feature = "backend-driver")]
-use crate::backend::Driver;
+use crate::backend::{Backend, driver::Driver};
+#[cfg(not(feature = "backend-driver"))]
 use crate::backend::{Backend, mock::Mock};
 
 #[derive(Default)]
 struct Pumps {
-    map: DashMap<u64, watch::Sender<ioctl::PadState>>,
+    map: DashMap<u64, watch::Sender<hidra_protocol::PadState>>,
 }
 
 #[instrument(level = "debug", skip(backend, rx))]
 async fn run_pump(
     backend: Arc<dyn Backend>,
     handle: u64,
-    mut rx: watch::Receiver<ioctl::PadState>,
+    mut rx: watch::Receiver<hidra_protocol::PadState>,
 ) {
     let mut dirty = true;
     let mut tick = time::interval(time::Duration::from_millis(4));
@@ -99,8 +99,9 @@ async fn serve_connected(
                 info!(?kind, features, "create device");
                 match backend.create(kind, features).await {
                     Ok(handle) => {
-                        let (tx, rx) =
-                            watch::channel::<ioctl::PadState>(ioctl::PadState::default());
+                        let (tx, rx) = watch::channel::<hidra_protocol::PadState>(
+                            hidra_protocol::PadState::default(),
+                        );
                         pumps.map.insert(handle, tx);
                         let b = backend.clone();
                         tokio::spawn(run_pump(b, handle, rx));
@@ -133,7 +134,7 @@ async fn serve_connected(
                 write_json(&mut server, &BrokerResponse::Pong).await?;
             }
             Ok(Some(BrokerRequest::UpdateState { handle, state })) => {
-                let s: ioctl::PadState = state.try_into()?;
+                let s: hidra_protocol::PadState = state.try_into()?;
                 if let Some(tx) = pumps.map.get(&handle) {
                     let _ = tx.value().send(s);
                     write_json(&mut server, &BrokerResponse::Ok).await?;

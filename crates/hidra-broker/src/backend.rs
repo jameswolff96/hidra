@@ -3,7 +3,7 @@ pub mod driver;
 pub mod mock;
 
 use anyhow::Result;
-use hidra_protocol::{DeviceKind, ioctl::PadState};
+use hidra_protocol::{DeviceKind, PadState};
 
 #[async_trait::async_trait]
 pub trait Backend: Send + Sync + 'static {
