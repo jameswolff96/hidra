@@ -24,9 +24,8 @@ pub struct PadState {
     pub ly: i16,
     pub rx: i16,
     pub ry: i16,
-    pub lt: u8,
-    pub rt: u8,
-    pub _pad: u8,
+    pub lt: u16,
+    pub rt: u16,
 }
 
 #[repr(C)]
