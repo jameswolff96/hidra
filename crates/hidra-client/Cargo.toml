@@ -5,5 +5,9 @@ edition = "2024"
 
 [dependencies]
 anyhow = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
 tokio = { workspace = true }
 hidra-protocol = { path = "../hidra-protocol" }
+hidra-ipc = { path = "../hidra-ipc" }
+
