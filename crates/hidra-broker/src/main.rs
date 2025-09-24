@@ -3,16 +3,49 @@
 pub mod backend;
 
 use anyhow::Result;
+use dashmap::DashMap;
 use hidra_ipc::{BrokerRequest, BrokerResponse, PIPE_PATH, read_json_opt, write_json};
+use hidra_protocol::ioctl;
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use tokio::net::windows::named_pipe::{NamedPipeServer, ServerOptions};
+use tokio::sync::watch;
+use tokio::time;
 use tracing::{error, info, instrument};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 #[cfg(feature = "backend-driver")]
 use crate::backend::Driver;
 use crate::backend::{Backend, mock::Mock};
+
+#[derive(Default)]
+struct Pumps {
+    map: DashMap<u64, watch::Sender<ioctl::PadState>>,
+}
+
+#[instrument(level = "debug", skip(backend, rx))]
+async fn run_pump(
+    backend: Arc<dyn Backend>,
+    handle: u64,
+    mut rx: watch::Receiver<ioctl::PadState>,
+) {
+    let mut dirty = true;
+    let mut tick = time::interval(time::Duration::from_millis(4));
+    loop {
+        tokio::select! {
+            _ = rx.changed() => { dirty = true; }
+            _ = tick.tick() => {
+                if dirty {
+                    let cur = *rx.borrow();
+                    if let Err(e) = backend.update(handle, cur).await {
+                        error!(handle, error=%e, "backend.update failed");
+                    }
+                    dirty = false;
+                }
+            }
+        }
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -26,20 +59,17 @@ async fn main() -> Result<()> {
 
     info!(pipe=%PIPE_PATH, "hidra-broker starting");
 
-    let next_handle = Arc::new(AtomicU64::new(1));
+    let pumps = Arc::new(Pumps::default());
 
     loop {
         let server = ServerOptions::new().create(PIPE_PATH)?;
-        #[cfg(feature = "backend-driver")]
-        let backend = Driver::new();
-        #[cfg(not(feature = "backend-driver"))]
-        let backend = Mock::new();
+        let pumps = pumps.clone();
 
         server.connect().await?;
         info!("client connected");
 
         tokio::spawn(async move {
-            if let Err(e) = serve_connected(server, backend, nh).await {
+            if let Err(e) = serve_connected(server, backend, pumps).await {
                 error!(error=%e, "client session error");
             }
         });
@@ -48,11 +78,11 @@ async fn main() -> Result<()> {
     }
 }
 
-#[instrument(skip(server, backend, next_handle), fields(peer=?std::thread::current().id()))]
+#[instrument(skip(server, backend, pumps), fields(peer=?std::thread::current().id()))]
 async fn serve_connected(
     mut server: NamedPipeServer,
     backend: Arc<dyn Backend>,
-    next_handle: Arc<AtomicU64>,
+    pumps: Arc<Pumps>,
 ) -> Result<()> {
     loop {
         match read_json_opt::<BrokerRequest, _>(&mut server).await {
@@ -63,7 +93,12 @@ async fn serve_connected(
             Ok(Some(BrokerRequest::Create { kind, features })) => {
                 info!(?kind, features, "create device");
                 match backend.create(kind, features).await {
-                    Ok(_) => {
+                    Ok(handle) => {
+                        let (tx, rx) =
+                            watch::channel::<ioctl::PadState>(ioctl::PadState::default());
+                        pumps.map.insert(handle, tx);
+                        let b = backend.clone();
+                        tokio::spawn(run_pump(b, handle, rx));
                         info!(handle, "created device");
                         write_json(&mut server, &BrokerResponse::OkCreate { handle }).await?;
                     }
@@ -76,6 +111,7 @@ async fn serve_connected(
             }
             Ok(Some(BrokerRequest::Destroy { handle })) => {
                 info!(handle, "destroy device");
+                let _ = pumps.map.remove(&handle);
                 match backend.destroy(handle).await {
                     Ok(_) => {
                         info!(handle, "destroyed device");
@@ -92,16 +128,24 @@ async fn serve_connected(
                 write_json(&mut server, &BrokerResponse::Pong).await?;
             }
             Ok(Some(BrokerRequest::UpdateState { handle, state })) => {
-                info!(handle, ?state, "update state");
-                match backend.update(handle, state.try_into()?).await {
+                let s: ioctl::PadState = state.try_into()?;
+                if let Some(tx) = pumps.map.get(&handle) {
+                    let _ = tx.value().send(s);
+                    write_json(&mut server, &BrokerResponse::Ok).await?;
+                } else {
+                    match backend.update(handle, s).await {
                     Ok(_) => {
                         info!(handle, "updated state");
                         write_json(&mut server, &BrokerResponse::Ok).await?;
                     }
                     Err(e) => {
                         error!(error=%e, "backend update error");
-                        write_json(&mut server, &BrokerResponse::Err { message: e.to_string() })
+                            write_json(
+                                &mut server,
+                                &BrokerResponse::Err { message: e.to_string() },
+                            )
                             .await?;
+                        }
                     }
                 }
             }
