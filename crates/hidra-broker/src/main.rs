@@ -13,6 +13,8 @@ use tokio::net::windows::named_pipe::{NamedPipeServer, ServerOptions};
 use tracing::{error, info, instrument};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
+#[cfg(feature = "backend-driver")]
+use crate::backend::Driver;
 use crate::backend::{Backend, mock::Mock};
 
 #[tokio::main]
@@ -30,16 +32,17 @@ async fn main() -> Result<()> {
     let next_handle = Arc::new(AtomicU64::new(1));
 
     loop {
-        // 1) Create ONE instance
         let server = ServerOptions::new().create(PIPE_PATH)?;
+        #[cfg(feature = "backend-driver")]
+        let backend = Driver::new();
+        #[cfg(not(feature = "backend-driver"))]
         let backend = Mock::new();
-        // 2) Wait for a client to connect BEFORE spawning
+
         server.connect().await?;
         info!("client connected");
 
         let nh = next_handle.clone();
 
-        // 3) Move the *connected* server into a task to serve it
         tokio::spawn(async move {
             if let Err(e) = serve_connected(server, backend, nh).await {
                 error!(error=%e, "client session error");
