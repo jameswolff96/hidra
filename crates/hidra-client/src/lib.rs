@@ -1,7 +1,7 @@
 #![deny(warnings)]
 
 use anyhow::{Result, bail};
-use hidra_ipc::{BrokerRequest, BrokerResponse, connect_client, read_json, write_json};
+use hidra_ipc::{BrokerRequest, BrokerResponse, PadState, connect_client, read_json, write_json};
 use hidra_protocol::DeviceKind;
 
 #[derive(Debug, Clone, Copy)]
@@ -28,8 +28,14 @@ pub async fn spawn(kind: DeviceKind) -> Result<GamepadHandle> {
     }
 }
 
-pub async fn set_rumble(_h: GamepadHandle, _low: u8, _high: u8) -> Result<()> {
-    Ok(())
+pub async fn update_state(h: GamepadHandle, s: PadState) -> Result<()> {
+    let mut pipe = connect_client().await?;
+    write_json(&mut pipe, &BrokerRequest::UpdateState { handle: h.0, state: s }).await?;
+    match read_json::<BrokerResponse, _>(&mut pipe).await? {
+        BrokerResponse::Ok => Ok(()),
+        BrokerResponse::Err { message } => bail!("broker error: {message}"),
+        other => bail!("unexpected response: {:?}", other),
+    }
 }
 
 pub async fn destroy(h: GamepadHandle) -> Result<()> {
