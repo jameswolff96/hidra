@@ -26,24 +26,27 @@ async fn main() -> Result<()> {
     let next_handle = Arc::new(AtomicU64::new(1));
 
     loop {
+        // 1) Create ONE instance
         let server = ServerOptions::new().create(PIPE_PATH)?;
+        // 2) Wait for a client to connect BEFORE spawning
+        server.connect().await?;
+        info!("client connected");
+
         let nh = next_handle.clone();
 
+        // 3) Move the *connected* server into a task to serve it
         tokio::spawn(async move {
-            if let Err(e) = serve_client(server, nh).await {
-                error!(error=%e, "client session ended with error");
+            if let Err(e) = serve_connected(server, nh).await {
+                error!(error=%e, "client session error");
             }
         });
 
-        // Loop to create the next pipe instance; the spawned task owns this one.
+        // 4) Loop back to create the NEXT instance
     }
 }
 
 #[instrument(skip(server, next_handle), fields(peer=?std::thread::current().id()))]
-async fn serve_client(mut server: NamedPipeServer, next_handle: Arc<AtomicU64>) -> Result<()> {
-    server.connect().await?;
-    info!("client connected");
-
+async fn serve_connected(mut server: NamedPipeServer, next_handle: Arc<AtomicU64>) -> Result<()> {
     loop {
         match read_json_opt::<BrokerRequest, _>(&mut server).await {
             Ok(None) => {
@@ -60,7 +63,6 @@ async fn serve_client(mut server: NamedPipeServer, next_handle: Arc<AtomicU64>) 
                 write_json(&mut server, &BrokerResponse::Ok).await?;
             }
             Ok(Some(BrokerRequest::Ping)) => {
-                info!("ping");
                 write_json(&mut server, &BrokerResponse::Pong).await?;
             }
             Ok(Some(BrokerRequest::UpdateState { handle, state })) => {
@@ -78,6 +80,5 @@ async fn serve_client(mut server: NamedPipeServer, next_handle: Arc<AtomicU64>) 
             }
         }
     }
-
     Ok(())
 }
