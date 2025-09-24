@@ -11,7 +11,7 @@ use tokio::{
 
 pub const PIPE_PATH: &str = r"\\.\pipe\hidra";
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct PadState {
     pub buttons: u16,
     pub lx: i16,
