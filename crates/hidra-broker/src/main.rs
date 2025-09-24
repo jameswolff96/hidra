@@ -45,6 +45,10 @@ async fn serve_client(mut server: NamedPipeServer, next_handle: Arc<AtomicU64>) 
             Ok(BrokerRequest::Ping) => {
                 write_json(&mut server, &BrokerResponse::Pong).await?;
             }
+            Ok(BrokerRequest::UpdateState { handle: _, state: _ }) => {
+                // TODO: Forward to driver
+                write_json(&mut server, &BrokerResponse::Ok).await?;
+            }
             Err(e) => {
                 // Send error back (best effort) then exit.
                 let _ =

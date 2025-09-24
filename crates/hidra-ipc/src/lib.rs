@@ -28,6 +28,7 @@ pub enum BrokerRequest {
     Ping,
     Create { kind: hidra_protocol::DeviceKind, features: u32 },
     Destroy { handle: u64 },
+    UpdateState { handle: u64, state: PadState },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
