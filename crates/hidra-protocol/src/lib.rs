@@ -2,6 +2,7 @@
 //! ABI-stable protocol: device kinds, flags, message envelopes.
 
 pub mod ioctl;
+pub mod report;
 
 use serde::{Deserialize, Serialize};
 
