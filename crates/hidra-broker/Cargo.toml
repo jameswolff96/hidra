@@ -3,6 +3,9 @@ name = "hidra-broker"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+backend-driver = []
+
 [dependencies]
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["net", "io-util"] }

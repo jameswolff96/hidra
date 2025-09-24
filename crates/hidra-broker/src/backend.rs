@@ -1,3 +1,5 @@
+#[cfg(feature = "backend-driver")]
+pub mod driver;
 pub mod mock;
 
 use anyhow::Result;
