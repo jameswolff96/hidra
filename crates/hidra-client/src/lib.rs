@@ -5,7 +5,17 @@ use hidra_ipc::{BrokerRequest, BrokerResponse, connect_client, read_json, write_
 use hidra_protocol::DeviceKind;
 
 #[derive(Debug, Clone, Copy)]
-pub struct GamepadHandle(u64);
+pub struct GamepadHandle(pub u64);
+
+pub async fn ping() -> Result<()> {
+    let mut pipe = connect_client().await?;
+    write_json(&mut pipe, &BrokerRequest::Ping).await?;
+    match read_json::<BrokerResponse, _>(&mut pipe).await? {
+        BrokerResponse::Pong => Ok(()),
+        BrokerResponse::Err { message } => bail!("broker error: {message}"),
+        other => bail!("unexpected response from broker: {:?}", other),
+    }
+}
 
 pub async fn spawn(kind: DeviceKind) -> Result<GamepadHandle> {
     let features = 0u32;
