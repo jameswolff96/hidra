@@ -1,6 +1,8 @@
 #![deny(warnings)]
 //! ABI-stable protocol: device kinds, flags, message envelopes.
 
+pub mod ioctl;
+
 use serde::{Deserialize, Serialize};
 
 #[repr(u16)]
