@@ -20,7 +20,7 @@ const _: [(); 14] = [(); size_of::<PadState>()];
 const _: [(); 2] = [(); align_of::<PadState>()];
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct PadState {
     pub buttons: u16,
     pub lx: i16,
