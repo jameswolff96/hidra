@@ -11,6 +11,18 @@ use tokio::{
 pub const PIPE_PATH: &str = r"\\.\pipe\hidra";
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct PadState {
+    pub buttons: u16,
+    pub lx: i16,
+    pub ly: i16,
+    pub rx: i16,
+    pub ry: i16,
+    pub lt: u8,
+    pub rt: u8,
+    //TODO: add touchpad, motion, battery, etc
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "cmd", rename_all = "lowercase")]
 pub enum BrokerRequest {
     Ping,
