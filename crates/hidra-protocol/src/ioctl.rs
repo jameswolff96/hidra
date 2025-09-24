@@ -16,6 +16,9 @@ bitflags::bitflags! {
     }
 }
 
+const _: [(); 14] = [(); size_of::<PadState>()];
+const _: [(); 2] = [(); align_of::<PadState>()];
+
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct PadState {
