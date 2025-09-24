@@ -31,6 +31,7 @@ async fn main() -> Result<()> {
 
 async fn serve_client(mut server: NamedPipeServer, next_handle: Arc<AtomicU64>) -> Result<()> {
     server.connect().await?;
+    println!("[hidra-broker] client connected");
 
     loop {
         match read_json::<BrokerRequest, _>(&mut server).await {
@@ -53,5 +54,8 @@ async fn serve_client(mut server: NamedPipeServer, next_handle: Arc<AtomicU64>) 
             }
         }
     }
+
+    println!("[hidra-broker] client disconnected");
+
     Ok(())
 }
