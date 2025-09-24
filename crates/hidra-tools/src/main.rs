@@ -54,10 +54,6 @@ async fn main() -> Result<()> {
             println!("{}", h.0);
         }
         Cmd::Update { handle, state } => {
-            let parts: Vec<&str> = state.split(',').collect();
-            if parts.len() != 6 {
-                anyhow::bail!("state must have 6 comma-separated values");
-            }
             let s = serde_json::from_str(&state)?;
             info!(handle, state=?s, "updated state");
 
