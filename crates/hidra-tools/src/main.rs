@@ -11,6 +11,12 @@ enum Cmd {
         #[arg(value_enum)]
         kind: PadKind,
     },
+
+    Destroy {
+        handle: u64,
+    },
+
+    Ping,
 }
 
 #[derive(Clone, Copy, clap::ValueEnum)]
@@ -30,7 +36,16 @@ async fn main() -> Result<()> {
                 PadKind::Ds5 => DeviceKind::DS5,
             };
             let h = spawn(kind).await?;
+            println!("Spawned device with handle {}", h.0);
             set_rumble(h, 0, 0).await?;
+        }
+        Cmd::Destroy { handle } => {
+            hidra_client::destroy(hidra_client::GamepadHandle(handle)).await?;
+            println!("Destroyed device with handle {}", handle);
+        }
+        Cmd::Ping => {
+            hidra_client::ping().await?;
+            println!("broker pong");
         }
     }
     Ok(())
