@@ -8,4 +8,4 @@ anyhow = { workspace = true }
 tokio = { workspace = true }
 hidra-client = { path = "../hidra-client" }
 hidra-protocol = { path = "../hidra-protocol" }
-clap = { version = "4", features = ["derive"] }
+clap = { version = "4.5.48", features = ["derive"] }
