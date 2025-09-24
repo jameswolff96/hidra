@@ -59,10 +59,15 @@ async fn main() -> Result<()> {
 
     info!(pipe=%PIPE_PATH, "hidra-broker starting");
 
+    #[cfg(feature = "backend-driver")]
+    let backend: Arc<dyn Backend> = Driver::new();
+    #[cfg(not(feature = "backend-driver"))]
+    let backend: Arc<dyn Backend> = Mock::new();
     let pumps = Arc::new(Pumps::default());
 
     loop {
         let server = ServerOptions::new().create(PIPE_PATH)?;
+        let backend = backend.clone();
         let pumps = pumps.clone();
 
         server.connect().await?;
@@ -134,12 +139,12 @@ async fn serve_connected(
                     write_json(&mut server, &BrokerResponse::Ok).await?;
                 } else {
                     match backend.update(handle, s).await {
-                    Ok(_) => {
-                        info!(handle, "updated state");
-                        write_json(&mut server, &BrokerResponse::Ok).await?;
-                    }
-                    Err(e) => {
-                        error!(error=%e, "backend update error");
+                        Ok(_) => {
+                            info!(handle, "updated state");
+                            write_json(&mut server, &BrokerResponse::Ok).await?;
+                        }
+                        Err(e) => {
+                            error!(error=%e, "backend update error");
                             write_json(
                                 &mut server,
                                 &BrokerResponse::Err { message: e.to_string() },
