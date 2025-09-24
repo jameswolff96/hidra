@@ -1,6 +1,7 @@
 #![deny(warnings)]
 
 use anyhow::{Context, Result};
+use hidra_protocol::ioctl;
 use serde::{Deserialize, Serialize};
 use tokio::net::windows::named_pipe::ClientOptions;
 use tokio::{
@@ -20,6 +21,22 @@ pub struct PadState {
     pub lt: u16,
     pub rt: u16,
     //TODO: add touchpad, motion, battery, etc
+}
+
+impl TryFrom<PadState> for ioctl::PadState {
+    type Error = anyhow::Error;
+
+    fn try_from(s: PadState) -> Result<Self> {
+        Ok(ioctl::PadState {
+            buttons: s.buttons,
+            lx: s.lx,
+            ly: s.ly,
+            rx: s.rx,
+            ry: s.ry,
+            lt: s.lt,
+            rt: s.rt,
+        })
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
