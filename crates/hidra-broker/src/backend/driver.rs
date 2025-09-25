@@ -2,11 +2,10 @@ use super::Backend;
 use anyhow::Result;
 use dashmap::DashMap;
 use hidra_protocol::{
-    CreateIn, CreateOut, DestroyIn, DeviceKind, IOCTL_HIDRA_CREATE, IOCTL_HIDRA_DESTROY,
-    IOCTL_HIDRA_UPDATE, PadState, UpdateIn,
+    CreateIn, CreateOut, DestroyIn, DeviceKind, HIDRA_INTERFACE_GUID, IOCTL_HIDRA_CREATE,
+    IOCTL_HIDRA_DESTROY, IOCTL_HIDRA_UPDATE, PadState, UpdateIn,
 };
 use std::os::windows::io::{AsRawHandle, FromRawHandle, RawHandle};
-use std::{ffi::OsStr, os::windows::ffi::OsStrExt};
 use std::{
     os::windows::io::OwnedHandle,
     sync::{
@@ -15,16 +14,18 @@ use std::{
     },
 };
 use tracing::debug;
-use windows::Win32::Foundation::HANDLE;
+use windows::Win32::Devices::DeviceAndDriverInstallation::{
+    DIGCF_DEVICEINTERFACE, DIGCF_PRESENT, SP_DEVICE_INTERFACE_DATA,
+    SP_DEVICE_INTERFACE_DETAIL_DATA_W, SetupDiEnumDeviceInterfaces, SetupDiGetClassDevsW,
+    SetupDiGetDeviceInterfaceDetailW,
+};
+use windows::Win32::Foundation::{HANDLE, INVALID_HANDLE_VALUE};
 use windows::Win32::Storage::FileSystem::{
-    CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_FLAG_OVERLAPPED, FILE_GENERIC_READ,
-    FILE_GENERIC_WRITE, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
+    CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_GENERIC_READ, FILE_GENERIC_WRITE, FILE_SHARE_READ,
+    FILE_SHARE_WRITE, OPEN_EXISTING,
 };
 use windows::Win32::System::IO::DeviceIoControl;
-use windows::core::PCWSTR;
-
-// TODO: move to config or registry once driver publishes it
-const DEVICE_SYMLINK: &str = r"\\.\HIDraBus0";
+use windows::core::{GUID, PCWSTR, PWSTR};
 
 pub struct Driver {
     next: AtomicU64,
@@ -34,8 +35,8 @@ pub struct Driver {
 
 impl Driver {
     pub fn new() -> Arc<Self> {
-        let h = open_device(DEVICE_SYMLINK).expect("open hidra device");
-        Arc::new(Self { next: AtomicU64::new(1), live: DashMap::new(), hdev: owned_from_handle(h) })
+        let h = open_by_interface_guid(&HIDRA_INTERFACE_GUID).expect("unable to open handle");
+        Arc::new(Self { next: AtomicU64::new(1), live: DashMap::new(), hdev: h })
     }
 }
 
@@ -67,22 +68,6 @@ impl Backend for Driver {
     }
 }
 
-fn open_device(sym_link: &str) -> Result<HANDLE> {
-    let wide: Vec<u16> = OsStr::new(sym_link).encode_wide().chain(Some(0)).collect();
-    let h = unsafe {
-        CreateFileW(
-            PCWSTR::from_raw(wide.as_ptr()),
-            FILE_GENERIC_READ.0 | FILE_GENERIC_WRITE.0,
-            FILE_SHARE_READ | FILE_SHARE_WRITE,
-            None,
-            OPEN_EXISTING,
-            FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED,
-            None,
-        )
-    }?;
-    Ok(h)
-}
-
 fn ioctl<TIn: Sized, TOut: Sized>(
     h: HANDLE,
     code: u32,
@@ -103,6 +88,52 @@ fn ioctl<TIn: Sized, TOut: Sized>(
         )
     }?;
     Ok(())
+}
+
+fn open_by_interface_guid(iface: &GUID) -> windows::core::Result<OwnedHandle> {
+    unsafe {
+        let hdev =
+            SetupDiGetClassDevsW(Some(iface), None, None, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT)?;
+        let mut idx = 0;
+        loop {
+            let mut di = SP_DEVICE_INTERFACE_DATA {
+                cbSize: std::mem::size_of::<SP_DEVICE_INTERFACE_DATA>() as u32,
+                ..Default::default()
+            };
+            SetupDiEnumDeviceInterfaces(hdev, None, iface, idx, &mut di)?;
+            // query required size
+            let mut req = 0u32;
+            SetupDiGetDeviceInterfaceDetailW(hdev, &di, None, 0, Some(&mut req), None)?;
+            let mut buf = vec![0u8; req as usize];
+            let p = buf.as_mut_ptr() as *mut SP_DEVICE_INTERFACE_DETAIL_DATA_W;
+            (*p).cbSize = std::mem::size_of::<SP_DEVICE_INTERFACE_DETAIL_DATA_W>() as u32;
+            SetupDiGetDeviceInterfaceDetailW(hdev, &di, Some(p), req, None, None)?;
+            let path = {
+                let pw = PWSTR((*p).DevicePath.as_mut_ptr());
+                let len = (0..).take_while(|&i| *pw.0.add(i) != 0).count();
+                String::from_utf16_lossy(std::slice::from_raw_parts(pw.0, len))
+            };
+            // open the device path
+            let access = FILE_GENERIC_READ.0 | FILE_GENERIC_WRITE.0;
+            let share = FILE_SHARE_READ | FILE_SHARE_WRITE;
+            let attrs = FILE_ATTRIBUTE_NORMAL;
+            let h = CreateFileW(
+                PCWSTR(
+                    path.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>().as_ptr(),
+                ),
+                access,
+                share,
+                None,
+                OPEN_EXISTING,
+                attrs,
+                None,
+            )?;
+            if h != INVALID_HANDLE_VALUE {
+                return Ok(owned_from_handle(h));
+            }
+            idx += 1;
+        }
+    }
 }
 
 fn owned_from_handle(h: HANDLE) -> OwnedHandle {

@@ -3,6 +3,10 @@ name = "hidra-protocol"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+"backend-driver" = ["dep:windows"]
+
 [dependencies]
 bitflags = "2.9.4"
+windows = { version = "0.62.0", optional = true }
 serde = { workspace = true }

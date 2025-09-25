@@ -86,4 +86,8 @@ pub const IOCTL_HIDRA_UPDATE: u32 =
 pub const IOCTL_HIDRA_DESTROY: u32 =
     ctl_code(HIDRA_DEVICE_TYPE, HIDRA_IOCTL_BASE + 2, METHOD_BUFFERED, FILE_WRITE_ACCESS);
 
+#[cfg(feature = "backend-driver")]
+pub const HIDRA_INTERFACE_GUID: windows::core::GUID =
+    windows::core::GUID::from_u128(0x11111111_1111_1111_1111_111111111111);
+
 pub const HIDRA_FFI_ABI_VERSION: u32 = 1;
