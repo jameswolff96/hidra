@@ -10,6 +10,9 @@
     "rust-analyzer.rustfmt.extraArgs": [
         "+stable"
     ],
+    "rust-analyzer.cargo.features": [
+        "backend-driver"
+    ],
     "editor.formatOnSave": true,
     "terminal.integrated.defaultProfile.windows": "PowerShell"
 }
