@@ -1,0 +1,62 @@
+;
+; HIDraBus.inf
+;
+
+[Version]
+Signature   = "$WINDOWS NT$"
+Class       = HIDra
+ClassGuid   = {468ADE0B-0432-4680-B57B-1850B33C7D9B}
+Provider    = %ManufacturerName%
+CatalogFile = HIDraBus.cat
+DriverVer   = ; TODO: set DriverVer in stampinf property pages
+PnpLockdown = 1
+
+[DestinationDirs]
+DefaultDestDir = 13
+
+[SourceDisksNames]
+1 = %DiskName%,,,""
+
+[SourceDisksFiles]
+HIDraBus.sys = 1,,
+
+;*****************************************
+; Install Section
+;*****************************************
+
+[Manufacturer]
+%ManufacturerName% = Standard,NT$ARCH$.10.0...16299 ; %13% support introduced in build 16299
+
+[Standard.NT$ARCH$.10.0...16299]
+%HIDraBus.DeviceDesc% = HIDraBus_Device, Root\HIDraBus ; TODO: edit hw-id
+
+[HIDraBus_Device.NT]
+CopyFiles = File_Copy
+
+[File_Copy]
+HIDraBus.sys
+
+;-------------- Service installation
+[HIDraBus_Device.NT.Services]
+AddService = HIDraBus,%SPSVCINST_ASSOCSERVICE%, HIDraBus_Service_Inst
+
+; -------------- HIDraBus driver install sections
+[HIDraBus_Service_Inst]
+DisplayName    = %HIDraBus.SVCDESC%
+ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
+StartType      = 3               ; SERVICE_DEMAND_START
+ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %13%\HIDraBus.sys
+
+[HIDraBus_Device.NT.Wdf]
+KmdfService = HIDraBus, HIDraBus_wdfsect
+
+[HIDraBus_wdfsect]
+KmdfLibraryVersion = $KMDFVERSION$
+
+[Strings]
+SPSVCINST_ASSOCSERVICE = 0x00000002
+ManufacturerName = "<Your manufacturer name>" ;TODO: Replace with your manufacturer name
+DiskName = "HIDraBus Installation Disk"
+HIDraBus.DeviceDesc = "HIDraBus Device"
+HIDraBus.SVCDESC = "HIDraBus Service"

@@ -1,0 +1,68 @@
+# --- Visual Studio / MSBuild caches ---
+.vs/
+*.VC.db
+*.VC.VC.opendb
+*.opendb
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# --- Build output directories (all configs/platforms) ---
+/[bB]uild/
+/[Dd]ebug*/
+/[Rr]elease*/
+/x64/
+/x86/
+/ARM*/
+/ARM64/
+
+# --- Object / intermediate files ---
+*.obj
+*.iobj
+*.pch
+*.pdb
+*.ipdb
+*.idb
+*.tlog
+*.lastbuildstate
+*.log
+*.wrn
+*.err
+*.ilk
+*.cache
+*.tmp
+*.rsp
+
+# --- Linker & binaries (driver + test builds) ---
+*.lib
+*.exp
+*.dll
+*.exe
+*.sys        # KMDF driver binaries (built artifacts)
+*.cat        # Catalogs produced by packaging
+*.cab        # Driver packages (optional to commit)
+*.msi
+*.msix
+*.msixbundle
+
+# --- WDK / signing artifacts ---
+*.pfx
+*.snk
+*.cer
+*.pvk
+
+# --- IntelliSense / CodeModel ---
+ipch/
+*.sdf
+*.opensdf
+*.ncb
+
+# --- Misc platform cruft ---
+.DS_Store
+Thumbs.db
+
+# --- NuGet (only if using packages.config restore style) ---
+packages/
+# If you use PackageReference, keep the lock file:
+#!packages.lock.json
