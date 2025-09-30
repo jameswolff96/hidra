@@ -103,7 +103,7 @@ fn open_by_interface_guid(iface: &GUID) -> windows::core::Result<OwnedHandle> {
             SetupDiEnumDeviceInterfaces(hdev, None, iface, idx, &mut di)?;
             // query required size
             let mut req = 0u32;
-            SetupDiGetDeviceInterfaceDetailW(hdev, &di, None, 0, Some(&mut req), None)?;
+            let _ = SetupDiGetDeviceInterfaceDetailW(hdev, &di, None, 0, Some(&mut req), None);
             let mut buf = vec![0u8; req as usize];
             let p = buf.as_mut_ptr() as *mut SP_DEVICE_INTERFACE_DETAIL_DATA_W;
             (*p).cbSize = std::mem::size_of::<SP_DEVICE_INTERFACE_DETAIL_DATA_W>() as u32;
