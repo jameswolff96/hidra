@@ -92,7 +92,7 @@
       <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>Wdmsec.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Wdmsec.lib;VhfUm.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -127,6 +127,8 @@
     <ClCompile Include="Driver.c" />
     <ClCompile Include="Guids.c" />
     <ClCompile Include="Queue.c" />
+    <ClCompile Include="ReportDescriptors.c" />
+    <ClCompile Include="VhfDevice.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

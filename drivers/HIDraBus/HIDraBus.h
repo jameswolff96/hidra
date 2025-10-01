@@ -2,6 +2,7 @@
 #include <ntddk.h>
 #include <wdf.h>
 #include <ntstrsafe.h>
+#include <vhf.h>
 
 //
 // --------- Keep these in sync with hidra-protocol (Rust) ---------
@@ -17,7 +18,7 @@
 EXTERN_C const GUID GUID_DEVINTERFACE_HIDRA;
 
 //
-// ABI structs — byte-for-byte with #[repr(C)] in Rust
+// ABI structs â€“ byte-for-byte with #[repr(C)] in Rust
 //
 typedef struct _HIDRA_PAD_STATE
 {
@@ -35,9 +36,8 @@ C_ASSERT(sizeof(HIDRA_PAD_STATE) == 14);
 typedef enum _HIDRA_DEVICE_KIND
 {
     HIDRA_KIND_X360 = 0x0366,
-    HIDRA_KIND_DS4  = 0x05C4,
-    HIDRA_KIND_DS5  = 0x0CE6,
-    ,
+    HIDRA_KIND_DS4 = 0x05C4,
+    HIDRA_KIND_DS5 = 0x0CE6,
 } HIDRA_DEVICE_KIND;
 
 typedef struct _HIDRA_CREATE_IN
@@ -63,15 +63,36 @@ typedef struct _HIDRA_DESTROY_IN
 } HIDRA_DESTROY_IN, * PHIDRA_DESTROY_IN;
 
 //
+// VHF Device Instance
+//
+typedef struct _HIDRA_VHF_DEVICE
+{
+    ULONGLONG Handle;
+    HIDRA_DEVICE_KIND Kind;
+    VHFHANDLE VhfHandle;
+    UCHAR ReportBuffer[64];  // Max report size
+    LIST_ENTRY ListEntry;
+} HIDRA_VHF_DEVICE, *PHIDRA_VHF_DEVICE;
+
+//
 // Device context
 //
 typedef struct _DEVICE_CONTEXT
 {
     ULONGLONG NextHandle;
-    // TODO: per-instance state map (WDFCOLLECTION / WDFLOOKASIDE) if needed
+    LIST_ENTRY DeviceList;      // List of HIDRA_VHF_DEVICE
+    WDFSPINLOCK DeviceListLock; // Protect device list
 } DEVICE_CONTEXT, * PDEVICE_CONTEXT;
 
 WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(DEVICE_CONTEXT, DeviceGetContext);
+
+//
+// VHF Report Descriptors
+//
+extern const UCHAR X360_HID_REPORT_DESCRIPTOR[];
+extern const ULONG X360_HID_REPORT_DESCRIPTOR_SIZE;
+extern const UCHAR DS4_HID_REPORT_DESCRIPTOR[];
+extern const ULONG DS4_HID_REPORT_DESCRIPTOR_SIZE;
 
 //
 // Prototypes
@@ -79,3 +100,12 @@ WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(DEVICE_CONTEXT, DeviceGetContext);
 DRIVER_INITIALIZE DriverEntry;
 EVT_WDF_DRIVER_DEVICE_ADD EvtDeviceAdd;
 EVT_WDF_IO_QUEUE_IO_DEVICE_CONTROL EvtIoDeviceControl;
+
+// VHF functions
+EVT_VHF_READY_FOR_NEXT_READ_REPORT EvtVhfReadyForNextReadReport;
+EVT_VHF_ASYNC_OPERATION EvtVhfAsyncOperation;
+
+NTSTATUS CreateVhfDevice(_In_ WDFDEVICE Device, _In_ HIDRA_DEVICE_KIND Kind, _Out_ PHIDRA_VHF_DEVICE* VhfDevice);
+VOID DestroyVhfDevice(_In_ WDFDEVICE Device, _In_ PHIDRA_VHF_DEVICE VhfDevice);
+PHIDRA_VHF_DEVICE FindVhfDeviceByHandle(_In_ PDEVICE_CONTEXT Context, _In_ ULONGLONG Handle);
+NTSTATUS UpdateVhfDeviceState(_In_ PHIDRA_VHF_DEVICE VhfDevice, _In_ PHIDRA_PAD_STATE State);
