@@ -42,12 +42,12 @@ NTSTATUS CreateVhfDevice(
     // Initialize VHF configuration
     VHF_CONFIG_INIT(&vhfConfig,
                     WdfDeviceWdmGetDeviceObject(Device),
-                    Kind == HIDRA_KIND_X360 ? X360_HID_REPORT_DESCRIPTOR_SIZE : DS4_HID_REPORT_DESCRIPTOR_SIZE,
-                    Kind == HIDRA_KIND_X360 ? X360_HID_REPORT_DESCRIPTOR : DS4_HID_REPORT_DESCRIPTOR);
+                    (USHORT)(Kind == HIDRA_KIND_X360 ? X360_HID_REPORT_DESCRIPTOR_SIZE : DS4_HID_REPORT_DESCRIPTOR_SIZE),
+                    (PUCHAR)(Kind == HIDRA_KIND_X360 ? X360_HID_REPORT_DESCRIPTOR : DS4_HID_REPORT_DESCRIPTOR));
 
     // Set up VHF callbacks
     vhfConfig.VhfClientContext = device;
-    vhfConfig.EvtVhfReadyForNextReadReport = EvtVhfReadyForNextReadReport;
+    vhfConfig.EvtVhfReadyForNextReadReport = (PEVT_VHF_READY_FOR_NEXT_READ_REPORT)EvtVhfReadyForNextReadReport;
 
     // Set device attributes based on controller type
     switch (Kind) {

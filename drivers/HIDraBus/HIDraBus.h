@@ -102,7 +102,7 @@ EVT_WDF_DRIVER_DEVICE_ADD EvtDeviceAdd;
 EVT_WDF_IO_QUEUE_IO_DEVICE_CONTROL EvtIoDeviceControl;
 
 // VHF functions
-EVT_VHF_READY_FOR_NEXT_READ_REPORT EvtVhfReadyForNextReadReport;
+VOID EvtVhfReadyForNextReadReport(_In_ VHFHANDLE VhfHandle, _In_ PVOID VhfContext);
 
 NTSTATUS CreateVhfDevice(_In_ WDFDEVICE Device, _In_ HIDRA_DEVICE_KIND Kind, _Out_ PHIDRA_VHF_DEVICE* VhfDevice);
 VOID DestroyVhfDevice(_In_ WDFDEVICE Device, _In_ PHIDRA_VHF_DEVICE VhfDevice);
