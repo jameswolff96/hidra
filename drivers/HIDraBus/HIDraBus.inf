@@ -4,8 +4,8 @@
 
 [Version]
 Signature   = "$WINDOWS NT$"
-Class       = HIDra
-ClassGuid   = {468ADE0B-0432-4680-B57B-1850B33C7D9B}
+Class       = System
+ClassGuid   = {4D36E97D-E325-11CE-BFC1-08002BE10318}
 Provider    = %ManufacturerName%
 CatalogFile = HIDraBus.cat
 DriverVer   = ; TODO: set DriverVer in stampinf property pages
