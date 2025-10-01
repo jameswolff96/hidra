@@ -1,4 +1,4 @@
-#include "HIDraBus_VHF.h"
+#include "HIDraBus.h"
 
 //
 // Xbox 360 Controller HID Report Descriptor

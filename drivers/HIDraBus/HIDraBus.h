@@ -29,7 +29,7 @@ typedef struct _HIDRA_PAD_STATE
     SHORT Ry;        // 8..9
     UINT16 Lt;       // 10..11
     UINT16 Rt;       // 12..13
-} HIDRA_PAD_STATE;
+} HIDRA_PAD_STATE, *PHIDRA_PAD_STATE;
 
 C_ASSERT(sizeof(HIDRA_PAD_STATE) == 14);
 
@@ -103,7 +103,6 @@ EVT_WDF_IO_QUEUE_IO_DEVICE_CONTROL EvtIoDeviceControl;
 
 // VHF functions
 EVT_VHF_READY_FOR_NEXT_READ_REPORT EvtVhfReadyForNextReadReport;
-EVT_VHF_ASYNC_OPERATION EvtVhfAsyncOperation;
 
 NTSTATUS CreateVhfDevice(_In_ WDFDEVICE Device, _In_ HIDRA_DEVICE_KIND Kind, _Out_ PHIDRA_VHF_DEVICE* VhfDevice);
 VOID DestroyVhfDevice(_In_ WDFDEVICE Device, _In_ PHIDRA_VHF_DEVICE VhfDevice);

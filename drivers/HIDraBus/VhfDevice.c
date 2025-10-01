@@ -1,4 +1,4 @@
-#include "HIDraBus_VHF.h"
+#include "HIDraBus.h"
 
 //
 // VHF Event Handlers
@@ -6,7 +6,7 @@
 
 VOID EvtVhfReadyForNextReadReport(
     _In_ VHFHANDLE VhfHandle,
-    _In_opt_ PVOID VhfContext)
+    _In_ PVOID VhfContext)
 {
     UNREFERENCED_PARAMETER(VhfHandle);
     UNREFERENCED_PARAMETER(VhfContext);
@@ -14,21 +14,6 @@ VOID EvtVhfReadyForNextReadReport(
     // We don't need to do anything special here since we push reports on-demand
 }
 
-NTSTATUS EvtVhfAsyncOperation(
-    _In_ VHFHANDLE VhfHandle,
-    _In_ VHFOPERATIONHANDLE VhfOperationHandle,
-    _In_opt_ PVOID VhfContext,
-    _In_ PHID_XFER_PACKET HidTransferPacket)
-{
-    UNREFERENCED_PARAMETER(VhfHandle);
-    UNREFERENCED_PARAMETER(VhfOperationHandle);
-    UNREFERENCED_PARAMETER(VhfContext);
-    UNREFERENCED_PARAMETER(HidTransferPacket);
-    
-    // Handle async operations like Get/Set Feature reports
-    // For basic gamepad functionality, we just return success
-    return STATUS_SUCCESS;
-}
 
 //
 // VHF Device Management
@@ -46,7 +31,7 @@ NTSTATUS CreateVhfDevice(
     
     // Allocate our VHF device structure
     device = (PHIDRA_VHF_DEVICE)ExAllocatePoolZero(
-        NonPagedPool,
+        PagedPool,
         sizeof(HIDRA_VHF_DEVICE),
         'VhfD');
     
@@ -63,7 +48,6 @@ NTSTATUS CreateVhfDevice(
     // Set up VHF callbacks
     vhfConfig.VhfClientContext = device;
     vhfConfig.EvtVhfReadyForNextReadReport = EvtVhfReadyForNextReadReport;
-    vhfConfig.EvtVhfAsyncOperation = EvtVhfAsyncOperation;
 
     // Set device attributes based on controller type
     switch (Kind) {
