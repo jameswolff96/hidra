@@ -125,6 +125,7 @@
   <ItemGroup>
     <ClCompile Include="Device.c" />
     <ClCompile Include="Driver.c" />
+    <ClCompile Include="Guids.c" />
     <ClCompile Include="Queue.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

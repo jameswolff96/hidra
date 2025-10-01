@@ -41,5 +41,8 @@
     <ClCompile Include="Device.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Guids.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
