@@ -1,7 +1,7 @@
 #![deny(warnings)]
 use anyhow::Result;
 use clap::Parser;
-use hidra_client::{destroy, ping, spawn};
+use hidra_client::{GamepadHandle, destroy, ping, spawn, update_state};
 use hidra_ipc::PadState;
 use hidra_protocol::DeviceKind;
 use tracing::info;
@@ -38,6 +38,7 @@ enum Cmd {
         handle: u64,
     },
     Ping,
+    QuickProbe,
 }
 
 #[derive(Clone, Copy, clap::ValueEnum)]
@@ -99,15 +100,26 @@ async fn main() -> Result<()> {
 
             info!(handle, state=?s, "updated state");
 
-            hidra_client::update_state(hidra_client::GamepadHandle(handle), s).await?;
+            update_state(GamepadHandle(handle), s).await?;
         }
         Cmd::Destroy { handle } => {
-            destroy(hidra_client::GamepadHandle(handle)).await?;
+            destroy(GamepadHandle(handle)).await?;
             info!(handle, "destroyed handle");
         }
         Cmd::Ping => {
             ping().await?;
             info!("pong");
+        }
+        Cmd::QuickProbe => {
+            let h = spawn(DeviceKind::DS4).await?;
+            info!(handle = h.0, "spawned handle");
+
+            let state = PadState { rx: 5, ..Default::default() };
+            update_state(h, state.clone()).await?;
+            info!(handle = h.0, ?state, "updated state");
+
+            destroy(h).await?;
+            info!(handle = h.0, "destroyed handle")
         }
     }
     Ok(())

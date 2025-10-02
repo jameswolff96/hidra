@@ -16,8 +16,8 @@ use std::{
 use tracing::debug;
 use windows::Win32::Devices::DeviceAndDriverInstallation::{
     DIGCF_DEVICEINTERFACE, DIGCF_PRESENT, SP_DEVICE_INTERFACE_DATA,
-    SP_DEVICE_INTERFACE_DETAIL_DATA_W, SetupDiEnumDeviceInterfaces, SetupDiGetClassDevsW,
-    SetupDiGetDeviceInterfaceDetailW,
+    SP_DEVICE_INTERFACE_DETAIL_DATA_W, SetupDiDestroyDeviceInfoList, SetupDiEnumDeviceInterfaces,
+    SetupDiGetClassDevsW, SetupDiGetDeviceInterfaceDetailW,
 };
 use windows::Win32::Foundation::{HANDLE, INVALID_HANDLE_VALUE};
 use windows::Win32::Storage::FileSystem::{
@@ -103,7 +103,7 @@ fn open_by_interface_guid(iface: &GUID) -> windows::core::Result<OwnedHandle> {
             SetupDiEnumDeviceInterfaces(hdev, None, iface, idx, &mut di)?;
             // query required size
             let mut req = 0u32;
-            SetupDiGetDeviceInterfaceDetailW(hdev, &di, None, 0, Some(&mut req), None)?;
+            let _ = SetupDiGetDeviceInterfaceDetailW(hdev, &di, None, 0, Some(&mut req), None);
             let mut buf = vec![0u8; req as usize];
             let p = buf.as_mut_ptr() as *mut SP_DEVICE_INTERFACE_DETAIL_DATA_W;
             (*p).cbSize = std::mem::size_of::<SP_DEVICE_INTERFACE_DETAIL_DATA_W>() as u32;
@@ -129,6 +129,7 @@ fn open_by_interface_guid(iface: &GUID) -> windows::core::Result<OwnedHandle> {
                 None,
             )?;
             if h != INVALID_HANDLE_VALUE {
+                SetupDiDestroyDeviceInfoList(hdev)?;
                 return Ok(owned_from_handle(h));
             }
             idx += 1;

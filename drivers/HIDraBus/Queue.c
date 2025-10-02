@@ -2,19 +2,35 @@
 
 static NTSTATUS HandleCreate(_In_ WDFREQUEST Request, _In_reads_bytes_(InLen) PVOID InBuf, _In_ size_t InLen, _Out_writes_bytes_(OutLen) PVOID OutBuf, _In_ size_t OutLen)
 {
+    NTSTATUS status;
+    WDFDEVICE device;
+    PDEVICE_CONTEXT ctx;
+    PHIDRA_CREATE_IN cin;
+    PHIDRA_CREATE_OUT cout;
+    PHIDRA_VHF_DEVICE vhfDevice;
+
     if (InLen < sizeof(HIDRA_CREATE_IN) || OutLen < sizeof(HIDRA_CREATE_OUT))
         return STATUS_BUFFER_TOO_SMALL;
 
-    WDFDEVICE device = WdfIoQueueGetDevice(WdfRequestGetIoQueue(Request));
-    PDEVICE_CONTEXT ctx = DeviceGetContext(device);
+    device = WdfIoQueueGetDevice(WdfRequestGetIoQueue(Request));
+    ctx = DeviceGetContext(device);
+    cin = (PHIDRA_CREATE_IN)InBuf;
+    cout = (PHIDRA_CREATE_OUT)OutBuf;
 
-    PHIDRA_CREATE_IN cin = (PHIDRA_CREATE_IN)InBuf;
-    PHIDRA_CREATE_OUT cout = (PHIDRA_CREATE_OUT)OutBuf;
+    // Validate device kind
+    HIDRA_DEVICE_KIND kind = (HIDRA_DEVICE_KIND)cin->Kind;
+    if (kind != HIDRA_KIND_X360 && kind != HIDRA_KIND_DS4 && kind != HIDRA_KIND_DS5) {
+        return STATUS_INVALID_PARAMETER;
+    }
 
-    UNREFERENCED_PARAMETER(cin); // kind/features available here for future VHF init
+    // Create VHF device
+    status = CreateVhfDevice(device, kind, &vhfDevice);
+    if (!NT_SUCCESS(status)) {
+        return status;
+    }
 
-    ULONGLONG handle = ctx->NextHandle++;
-    cout->Handle = handle;
+    // Return the handle
+    cout->Handle = vhfDevice->Handle;
 
     WdfRequestSetInformation(Request, sizeof(HIDRA_CREATE_OUT));
     return STATUS_SUCCESS;
@@ -22,13 +38,30 @@ static NTSTATUS HandleCreate(_In_ WDFREQUEST Request, _In_reads_bytes_(InLen) PV
 
 static NTSTATUS HandleUpdate(_In_ WDFREQUEST Request, _In_reads_bytes_(InLen) PVOID InBuf, _In_ size_t InLen)
 {
+    NTSTATUS status;
+    WDFDEVICE device;
+    PDEVICE_CONTEXT ctx;
+    PHIDRA_UPDATE_IN uin;
+    PHIDRA_VHF_DEVICE vhfDevice;
+
     if (InLen < sizeof(HIDRA_UPDATE_IN))
         return STATUS_BUFFER_TOO_SMALL;
 
-    PHIDRA_UPDATE_IN uin = (PHIDRA_UPDATE_IN)InBuf;
+    device = WdfIoQueueGetDevice(WdfRequestGetIoQueue(Request));
+    ctx = DeviceGetContext(device);
+    uin = (PHIDRA_UPDATE_IN)InBuf;
 
-    // TODO: look up instance by uin->Handle and submit to VHF (VhfWriteReportData)
-    UNREFERENCED_PARAMETER(uin);
+    // Find the VHF device by handle
+    vhfDevice = FindVhfDeviceByHandle(ctx, uin->Handle);
+    if (!vhfDevice) {
+        return STATUS_INVALID_HANDLE;
+    }
+
+    // Update the device state
+    status = UpdateVhfDeviceState(vhfDevice, &uin->State);
+    if (!NT_SUCCESS(status)) {
+        return status;
+    }
 
     WdfRequestSetInformation(Request, 0);
     return STATUS_SUCCESS;
@@ -36,12 +69,26 @@ static NTSTATUS HandleUpdate(_In_ WDFREQUEST Request, _In_reads_bytes_(InLen) PV
 
 static NTSTATUS HandleDestroy(_In_ WDFREQUEST Request, _In_reads_bytes_(InLen) PVOID InBuf, _In_ size_t InLen)
 {
+    WDFDEVICE device;
+    PDEVICE_CONTEXT ctx;
+    PHIDRA_DESTROY_IN din;
+    PHIDRA_VHF_DEVICE vhfDevice;
+
     if (InLen < sizeof(HIDRA_DESTROY_IN))
         return STATUS_BUFFER_TOO_SMALL;
 
-    PHIDRA_DESTROY_IN din = (PHIDRA_DESTROY_IN)InBuf;
-    UNREFERENCED_PARAMETER(din);
-    // TODO: free per-instance resources / stop VHF target
+    device = WdfIoQueueGetDevice(WdfRequestGetIoQueue(Request));
+    ctx = DeviceGetContext(device);
+    din = (PHIDRA_DESTROY_IN)InBuf;
+
+    // Find the VHF device by handle
+    vhfDevice = FindVhfDeviceByHandle(ctx, din->Handle);
+    if (!vhfDevice) {
+        return STATUS_INVALID_HANDLE;
+    }
+
+    // Destroy the VHF device
+    DestroyVhfDevice(device, vhfDevice);
 
     WdfRequestSetInformation(Request, 0);
     return STATUS_SUCCESS;
@@ -63,7 +110,7 @@ VOID EvtIoDeviceControl(
     PVOID inBuf = NULL, outBuf = NULL;
     size_t inLen = 0, outLen = 0;
 
-    // METHOD_BUFFERED — both via system buffer
+    // METHOD_BUFFERED â€“ both via system buffer
     if (IoControlCode == IOCTL_HIDRA_CREATE || IoControlCode == IOCTL_HIDRA_UPDATE || IoControlCode == IOCTL_HIDRA_DESTROY)
     {
         status = WdfRequestRetrieveInputBuffer(Request, 0, &inBuf, &inLen);
